@@ -26,23 +26,26 @@ const services = [
 
 export function Services() {
     return (
-        <section id="services" className="py-20 bg-muted/30">
-            <div className="container px-4 md:px-8 max-w-screen-2xl">
-                <div className="mb-12 text-center">
-                    <h2 className="text-3xl font-bold tracking-tight sm:text-4xl mb-4">Our Expertise</h2>
-                    <p className="text-muted-foreground max-w-2xl mx-auto">
+        <section id="services" className="py-24 relative">
+            <div className="container px-4 md:px-8 max-w-screen-2xl relative z-10">
+                <div className="mb-16 text-center">
+                    <h2 className="text-3xl font-bold tracking-tight sm:text-4xl mb-4 bg-gradient-to-b from-white to-white/60 bg-clip-text text-transparent">Our Expertise</h2>
+                    <p className="text-muted-foreground max-w-2xl mx-auto text-lg">
                         We deliver end-to-end solutions tailored to your business needs.
                     </p>
                 </div>
                 <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
                     {services.map((service) => (
-                        <Card key={service.title} className="bg-card/50 backdrop-blur border-primary/10 hover:border-primary/30 transition-all hover:shadow-lg hover:shadow-primary/5">
+                        <Card key={service.title} className="bg-white/5 backdrop-blur-xl border-white/10 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_0_30px_rgba(6,182,212,0.15)] hover:border-primary/50 group overflow-hidden relative">
+                            <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                             <CardHeader>
-                                <service.icon className="h-10 w-10 text-primary mb-2" />
-                                <CardTitle>{service.title}</CardTitle>
+                                <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center mb-4 group-hover:bg-primary/20 transition-colors">
+                                    <service.icon className="h-6 w-6 text-primary" />
+                                </div>
+                                <CardTitle className="text-xl group-hover:text-primary transition-colors">{service.title}</CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <CardDescription className="text-base">
+                                <CardDescription className="text-base text-muted-foreground/80">
                                     {service.description}
                                 </CardDescription>
                             </CardContent>
