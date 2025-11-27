@@ -31,7 +31,7 @@ export function Hero() {
                         <div className="flex flex-col sm:flex-row justify-center lg:justify-start gap-4 animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-300">
                             <Button asChild size="lg" className="h-12 px-8 text-base bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white border-0 shadow-[0_0_30px_rgba(6,182,212,0.3)] transition-all hover:scale-105">
                                 <Link href="/#contact">
-                                    Work With Us <ArrowRight className="ml-2 h-4 w-4" />
+                                    Let's get to work <ArrowRight className="ml-2 h-4 w-4" />
                                 </Link>
                             </Button>
                             <Button asChild variant="outline" size="lg" className="h-12 px-8 text-base border-white/10 bg-white/5 hover:bg-white/10 hover:text-white backdrop-blur-sm transition-all hover:scale-105">
