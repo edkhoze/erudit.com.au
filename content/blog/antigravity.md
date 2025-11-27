@@ -11,13 +11,13 @@ This website was developed entirely using **Google's Antigravity IDE**, leveragi
 
 ## A Familiar Yet Powerful Experience
 
-Antigravity is essentially a **VS Code clone**, but it's a really good one. It feels immediately familiar to any developer who has used VS Code, but with supercharged AI capabilities baked right into the core.
+Antigravity is essentially another **VS Code clone**, but with some new capabilities and built-in goodies line Gemini 3 Pro model, ability to generate images on the fly using Google's latest image generation models, as well as this cool feature that allows it to test your website in Chrome using Antigravity plugin, akin to Selenium UI tests. It does feel similar to vanilla VS Code with GitHub Copilot plugged in, and that's a good thing in my book.
 
-As of **November 2025**, it's currently free to use. I've been powering my development with the **Gemini 3 Pro** model, which has been incredibly impressive. For those who prefer other flavors of AI, there's also the option to switch to **Claude Sonnet** or **GPT-OSS** models, giving developers flexibility in their AI tooling.
+As of **November 2025**, it's currently free to use, but I already have ran into some limits that reset in 24 hours. I've been powering my development with the **Gemini 3 Pro** model, which has been impressive, but other options are available, such as **Claude Sonnet** or **GPT-OSS** models. 
 
 ## Agentic Capabilities
 
-What sets Antigravity apart is its "Agentic" nature. It's not just code completion; it's a pair programmer that can perform complex tasks.
+What sets Antigravity apart is its "Agentic" nature. It's not just code completion; it's a pair programmer that can perform complex tasks. That means it can do everything by itself or - and that's what I've been using - do planning mode first and then ask for approval for each change.
 
 ![AI Agent Coding](/images/ai-agent.png)
 
@@ -27,11 +27,11 @@ One of the standout features is the ability to test the website you are building
 
 ### Native Image Generation
 
-Need assets? Antigravity has the ability to **natively generate images** using Google's latest image generation models. I used this feature to create the abstract 3D visuals and the logo for this very site, all without leaving the IDE.
+Need assets? Antigravity has the ability to **natively generate images** using Google's latest image generation models. As you no doubt can tell, the images in this blog post have been created this way.
 
 ## Planning Mode: A Game Changer
 
-I've been using the **Planning Mode**, which feels similar to Cursor 2 but even more refined. I really like it. The workflow is wonderful:
+I've been using the **Planning Mode**, which feels similar to Cursor 2 / vanilla VS Code but even more refined. I really like it. The workflow is wonderful:
 
 1.  It creates a detailed **Implementation Plan**.
 2.  It creates a **Task List** and ticks off items one-by-one as it executes them.
@@ -41,8 +41,10 @@ This structured approach keeps the development focused and transparent.
 
 ## Final Verdict
 
-Overall, I've come away really impressed. It's a powerful tool that streamlines the process of building simple to complex websites.
+Overall, I've come away impressed. It's a powerful tool that streamlines the process of building simple websites like this one. 
 
 > It's not without its issues, obviously—there are some bugs that need to be iterated over and fixed, but that's to be expected with such cutting-edge technology.
 
-I do wonder how much it will cost in the future, but for now, it's a fantastic addition to the developer's toolkit.
+I do wonder how much it will cost in the future, but for now, it's a fantastic addition to the developer's toolkit. 
+
+> The question is - is it really better than VS Code + GitHub Copilot or Cursor 2? IMHO, it's too early to tell at this point!
