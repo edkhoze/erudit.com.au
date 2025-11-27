@@ -8,30 +8,30 @@ const services = [
         icon: LayoutTemplate,
     },
     {
-        title: ".NET / C# Development",
-        description: "Robust, scalable custom software solutions built on the latest Microsoft .NET framework.",
+        title: "AI-assisted .NET Development",
+        description: "Robust, scalable & secure software solutions built on .NET using latest AI tools.",
         icon: Code2,
     },
     {
         title: "Azure Cloud",
-        description: "Cloud-native architecture, migration, and management on Microsoft Azure.",
+        description: "Cloud-native architecture, migration, as well as solution development and optimization on Microsoft Azure.",
         icon: Cloud,
     },
     {
-        title: "Digital Marketing",
-        description: "Data-driven strategies to grow your audience and increase engagement.",
+        title: "Digital Consulting Services",
+        description: "Helping to make sense of rapidly changing digital landscape.",
         icon: Megaphone,
     },
 ];
 
 export function Services() {
     return (
-        <section id="services" className="py-24 relative">
+        <section id="services" className="py-16 md:py-24 relative">
             <div className="container px-4 md:px-8 max-w-screen-2xl relative z-10">
-                <div className="mb-16 text-center">
-                    <h2 className="text-3xl font-bold tracking-tight sm:text-4xl mb-4 bg-gradient-to-b from-white to-white/60 bg-clip-text text-transparent">Our Expertise</h2>
-                    <p className="text-muted-foreground max-w-2xl mx-auto text-lg">
-                        We deliver end-to-end solutions tailored to your business needs.
+                <div className="mb-10 md:mb-16 text-center">
+                    <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight mb-4 bg-gradient-to-b from-white to-white/60 bg-clip-text text-transparent">Our Expertise</h2>
+                    <p className="text-muted-foreground max-w-2xl mx-auto text-base sm:text-lg">
+                        We can help you in the following areas
                     </p>
                 </div>
                 <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">

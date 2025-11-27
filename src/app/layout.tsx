@@ -7,8 +7,8 @@ import { Footer } from "@/components/layout/Footer";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Erudit Consulting | Expert IT Services",
-  description: "Specializing in Sitecore DXP, .NET, Azure Cloud, and Digital Marketing.",
+  title: "Erudit | Next-Gen Digital Consulting",
+  description: "Expert consulting in Sitecore DXP, .NET, Azure Cloud, and Digital Marketing.",
 };
 
 export default function RootLayout({

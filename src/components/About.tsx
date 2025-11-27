@@ -34,10 +34,10 @@ export function About() {
 
                         <div className="space-y-4 mb-8">
                             {[
-                                "Certified Sitecore Implementation Partners",
-                                "Microsoft Gold Partners for Cloud Platform",
-                                "Data-Driven Digital Marketing Strategies",
-                                "Enterprise-Grade Security & Compliance"
+                                "Solution Design and Architecture",
+                                "Digital Marketing Consulting",
+                                "AI-assisted content management and software development",
+                                "Fixing long standing issues with your existing solutions"
                             ].map((item) => (
                                 <div key={item} className="flex items-center gap-3">
                                     <CheckCircle2 className="h-5 w-5 text-primary" />
@@ -46,9 +46,9 @@ export function About() {
                             ))}
                         </div>
 
-                        <Button asChild size="lg" className="bg-white/10 hover:bg-white/20 text-white border-0 backdrop-blur-sm">
+                        {/*  <Button asChild size="lg" className="bg-white/10 hover:bg-white/20 text-white border-0 backdrop-blur-sm">
                             <Link href="/#contact">Learn More About Us</Link>
-                        </Button>
+                        </Button> */}
                     </div>
 
                 </div>

@@ -1,17 +1,24 @@
 import Link from "next/link";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 
 export function Header() {
     return (
-        <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-            <div className="container flex h-16 max-w-screen-2xl items-center justify-between px-4 md:px-8">
-                <div className="flex items-center gap-2">
-                    <Link href="/" className="flex items-center space-x-2">
-                        <span className="text-2xl font-bold bg-gradient-to-r from-primary to-purple-400 bg-clip-text text-transparent">
-                            Erudit
-                        </span>
-                    </Link>
-                </div>
+        <header className="fixed top-0 w-full z-50 border-b border-white/5 bg-background/60 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60">
+            <div className="container flex h-16 items-center justify-between px-4 md:px-8 max-w-screen-2xl">
+                <Link href="/" className="flex items-center gap-3 group">
+                    <div className="relative h-8 w-8 overflow-hidden rounded-lg">
+                        <Image
+                            src="/logo.png"
+                            alt="Erudit Logo"
+                            fill
+                            className="object-cover group-hover:scale-110 transition-transform duration-300"
+                        />
+                    </div>
+                    <span className="text-xl font-bold bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent text-glow">
+                        Erudit
+                    </span>
+                </Link>
 
                 <nav className="hidden md:flex items-center gap-6 text-sm font-medium">
                     <Link href="/" className="transition-colors hover:text-primary">
@@ -30,7 +37,7 @@ export function Header() {
 
                 <div className="flex items-center gap-4">
                     <Button asChild variant="default" className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-[0_0_15px_rgba(var(--primary),0.5)]">
-                        <Link href="/#contact">Get Started</Link>
+                        <Link href="/#contact">Let's get to work</Link>
                     </Button>
                 </div>
             </div>

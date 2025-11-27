@@ -25,7 +25,7 @@ export function Hero() {
                         </h1>
 
                         <p className="mb-10 text-xl text-muted-foreground sm:text-2xl leading-relaxed animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-200">
-                            Expert consulting in Sitecore DXP, .NET, Azure Cloud, and Digital Marketing. We build scalable, secure, and personalized digital experiences.
+                            Expert consulting in Sitecore DXP, .NET, Azure Cloud, and Digital Marketing. We build scalable, secure, highly personalized and performant digital experiences.
                         </p>
 
                         <div className="flex flex-col sm:flex-row justify-center lg:justify-start gap-4 animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-300">
