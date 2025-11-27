@@ -13,7 +13,7 @@ export async function LatestPosts() {
                     <div>
                         <h2 className="text-3xl font-bold tracking-tight sm:text-4xl mb-4">Latest Insights</h2>
                         <p className="text-muted-foreground">
-                            Thoughts on technology, design, and digital transformation.
+                            Thoughts on technology, strategy, and AI / LLMs.
                         </p>
                     </div>
                     <Link href="/blog" className="hidden md:flex items-center gap-2 text-primary hover:text-primary/80 transition-colors font-medium">

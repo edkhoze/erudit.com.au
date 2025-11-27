@@ -15,7 +15,7 @@ export default function BlogIndex() {
             <div className="mb-12 text-center">
                 <h1 className="text-4xl font-extrabold tracking-tight mb-4">Insights & Articles</h1>
                 <p className="text-muted-foreground max-w-2xl mx-auto">
-                    Explore our latest thoughts on technology, strategy, and digital transformation.
+                    Explore our latest thoughts on technology, strategy, and AI / LLMs.
                 </p>
             </div>
 
