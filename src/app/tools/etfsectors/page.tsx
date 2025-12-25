@@ -20,6 +20,7 @@ export default function EtfToolPage() {
     // Bypass captcha in development
     const isDev = process.env.NODE_ENV === 'development';
     const [captchaToken, setCaptchaToken] = useState<string | null>(isDev ? "dev-bypass" : null);
+    const [isVerifiedHuman, setIsVerifiedHuman] = useState(isDev);
 
     const recaptchaRef = useRef<ReCAPTCHA>(null);
 
@@ -102,7 +103,7 @@ export default function EtfToolPage() {
             return;
         }
 
-        if (!captchaToken) {
+        if (!isVerifiedHuman && !captchaToken) {
             setError("Please complete the captcha.");
             return;
         }
@@ -113,22 +114,32 @@ export default function EtfToolPage() {
         setSourceUrl(null);
 
         try {
-            const result = await getEtfData({ ticker, url, captchaToken });
+            // If verified human, we can send without captchaToken (optional/ignored by backend if cookie present)
+            // But if not yet verified, we must send it.
+            const result = await getEtfData({ ticker, url, captchaToken: captchaToken || undefined });
+
             if (result.success && result.data) {
                 setData(result.data);
                 if (result.sourceUrl) setSourceUrl(result.sourceUrl);
+                // Mark as verified human so we can hide captcha for next searches
+                setIsVerifiedHuman(true);
             } else {
                 setError(result.error || "Failed to fetch data.");
                 if (result.sourceUrl) setSourceUrl(result.sourceUrl);
+
+                // If the error specifically mentions captcha, reset verification
+                if (result.error && result.error.toLowerCase().includes("captcha")) {
+                    setIsVerifiedHuman(false);
+                    setCaptchaToken(null);
+                    recaptchaRef.current?.reset();
+                }
             }
         } catch (e) {
             setError("An unexpected error occurred.");
         } finally {
             setLoading(false);
-            if (!isDev) {
-                recaptchaRef.current?.reset();
-                setCaptchaToken(null);
-            }
+            // DO NOT reset captcha here if successful. 
+            // Only reset if we failed verification (handled above)
         }
     };
 
@@ -170,9 +181,9 @@ export default function EtfToolPage() {
                     </div>
 
                     <div className="flex justify-between items-center">
-                        {isDev ? (
-                            <div className="text-xs text-muted-foreground italic border px-3 py-2 rounded">
-                                (ReCAPTCHA Bypassed in Dev)
+                        {isVerifiedHuman ? (
+                            <div className="text-xs text-green-600 font-medium border border-green-200 bg-green-50 px-3 py-2 rounded flex items-center gap-2">
+                                ✓ Verified Human
                             </div>
                         ) : (
                             <ReCAPTCHA

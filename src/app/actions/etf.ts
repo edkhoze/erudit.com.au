@@ -5,13 +5,14 @@ import { ETF_URLS } from '@/lib/etf-data';
 import { cookies } from 'next/headers';
 
 const AUTH_COOKIE_NAME = 'etf_auth';
+const HUMAN_COOKIE_NAME = 'etf_human';
 const PASSWORD = 'YouShallNotPass!';
 const SESSION_DURATION = 15 * 60 * 1000; // 15 minutes
 
 interface EtfDataRequest {
     ticker?: string;
     url?: string;
-    captchaToken: string;
+    captchaToken?: string;
 }
 
 interface SectorData {
@@ -70,26 +71,41 @@ export async function getEtfData({ ticker, url, captchaToken }: EtfDataRequest):
     }
     // Verify Captcha (Skip in Development)
     if (process.env.NODE_ENV !== 'development') {
-        if (!recaptchaSecret) {
-            return { success: false, error: "Server configuration error: Missing reCAPTCHA Secret." };
-        }
+        // Check for Human Cookie
+        const cookieStore = await cookies();
+        const humanCookie = cookieStore.get(HUMAN_COOKIE_NAME);
 
-        if (!captchaToken) {
-            return { success: false, error: "Please complete the captcha." };
-        }
-
-        try {
-            const verifyUrl = `https://www.google.com/recaptcha/api/siteverify?secret=${recaptchaSecret}&response=${captchaToken}`;
-            const captchaRes = await fetch(verifyUrl, { method: 'POST' });
-            const captchaData = await captchaRes.json();
-
-            if (!captchaData.success) {
-                console.error("Captcha verification failed:", captchaData);
-                return { success: false, error: "Captcha verification failed. Please try again." };
+        if (!humanCookie || humanCookie.value !== 'true') {
+            if (!recaptchaSecret) {
+                return { success: false, error: "Server configuration error: Missing reCAPTCHA Secret." };
             }
-        } catch (err) {
-            console.error("Captcha verification error:", err);
-            return { success: false, error: "Failed to verify captcha." };
+
+            if (!captchaToken) {
+                return { success: false, error: "Please complete the captcha." };
+            }
+
+            try {
+                const verifyUrl = `https://www.google.com/recaptcha/api/siteverify?secret=${recaptchaSecret}&response=${captchaToken}`;
+                const captchaRes = await fetch(verifyUrl, { method: 'POST' });
+                const captchaData = await captchaRes.json();
+
+                if (!captchaData.success) {
+                    console.error("Captcha verification failed:", captchaData);
+                    return { success: false, error: "Captcha verification failed. Please try again." };
+                }
+
+                // Verification Success - Set Human Cookie
+                cookieStore.set(HUMAN_COOKIE_NAME, 'true', {
+                    httpOnly: true,
+                    secure: process.env.NODE_ENV === 'production',
+                    maxAge: 30 * 60, // 30 minutes
+                    path: '/',
+                });
+
+            } catch (err) {
+                console.error("Captcha verification error:", err);
+                return { success: false, error: "Failed to verify captcha." };
+            }
         }
     }
 
