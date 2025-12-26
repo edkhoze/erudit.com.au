@@ -37,7 +37,7 @@ export function Header() {
 
                 <div className="flex items-center gap-4">
                     <Button asChild variant="default" className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-[0_0_15px_rgba(var(--primary),0.5)]">
-                        <Link href="/#contact">Let's get to work</Link>
+                        <Link href="/#contact">Let&apos;s get to work</Link>
                     </Button>
                 </div>
             </div>

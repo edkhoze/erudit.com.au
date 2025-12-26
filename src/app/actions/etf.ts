@@ -3,11 +3,12 @@
 import FirecrawlApp from '@mendable/firecrawl-js';
 import { ETF_URLS } from '@/lib/etf-data';
 import { cookies } from 'next/headers';
+import * as cheerio from 'cheerio';
 
 const AUTH_COOKIE_NAME = 'etf_auth';
 const HUMAN_COOKIE_NAME = 'etf_human';
 const PASSWORD = 'YouShallNotPass!';
-const SESSION_DURATION = 15 * 60 * 1000; // 15 minutes
+// const SESSION_DURATION = 15 * 60 * 1000; // 15 minutes
 
 interface EtfDataRequest {
     ticker?: string;
@@ -24,8 +25,24 @@ interface EtfResponse {
     success: boolean;
     data?: SectorData[];
     sourceUrl?: string;
+    sources?: EtfSourceAttempt[];
     error?: string;
 }
+
+type EtfSourceStage =
+    | 'direct'
+    | 'factsheet'
+    | 'search'
+    | 'candidate'
+    | 'candidate-factsheet';
+
+type EtfSourceAttempt = {
+    stage: EtfSourceStage;
+    url: string;
+    ok: boolean;
+    note?: string;
+    error?: string;
+};
 
 // Normalize sector names to match the requested list
 const SECTOR_MAPPING: Record<string, string> = {
@@ -65,47 +82,17 @@ const REQUESTED_SECTORS = [
 export async function getEtfData({ ticker, url, captchaToken }: EtfDataRequest): Promise<EtfResponse> {
     const apiKey = process.env.FIRECRAWL_API_KEY;
     const recaptchaSecret = process.env.RECAPTCHA_SECRET_KEY;
+    const sources: EtfSourceAttempt[] = [];
 
     if (!apiKey) {
         return { success: false, error: "Server configuration error: Missing Firecrawl API Key." };
     }
+    const cookieStore = await cookies();
     // Verify Captcha (Skip in Development)
     if (process.env.NODE_ENV !== 'development') {
-        // Check for Human Cookie
-        const cookieStore = await cookies();
-        const humanCookie = cookieStore.get(HUMAN_COOKIE_NAME);
-
-        if (!humanCookie || humanCookie.value !== 'true') {
-            if (!recaptchaSecret) {
-                return { success: false, error: "Server configuration error: Missing reCAPTCHA Secret." };
-            }
-
-            if (!captchaToken) {
-                return { success: false, error: "Please complete the captcha." };
-            }
-
-            try {
-                const verifyUrl = `https://www.google.com/recaptcha/api/siteverify?secret=${recaptchaSecret}&response=${captchaToken}`;
-                const captchaRes = await fetch(verifyUrl, { method: 'POST' });
-                const captchaData = await captchaRes.json();
-
-                if (!captchaData.success) {
-                    console.error("Captcha verification failed:", captchaData);
-                    return { success: false, error: "Captcha verification failed. Please try again." };
-                }
-
-                // Verification Success - Set Human Cookie
-                cookieStore.set(HUMAN_COOKIE_NAME, 'true', {
-                    httpOnly: true,
-                    secure: process.env.NODE_ENV === 'production',
-                    maxAge: 30 * 60, // 30 minutes
-                    path: '/',
-                });
-
-            } catch (err) {
-                console.error("Captcha verification error:", err);
-                return { success: false, error: "Failed to verify captcha." };
-            }
+        const captcha = await verifyCaptchaInternal({ cookieStore, recaptchaSecret, captchaToken });
+        if (!captcha.success) {
+            return { success: false, error: captcha.error };
         }
     }
 
@@ -127,7 +114,6 @@ export async function getEtfData({ ticker, url, captchaToken }: EtfDataRequest):
 
     // Check for Auth Cookie (Skip in Development)
     if (process.env.NODE_ENV !== 'development') {
-        const cookieStore = await cookies();
         const authCookie = cookieStore.get(AUTH_COOKIE_NAME);
         if (!authCookie || authCookie.value !== 'true') {
             return { success: false, error: "Unauthorized. Session expired." };
@@ -137,67 +123,326 @@ export async function getEtfData({ ticker, url, captchaToken }: EtfDataRequest):
     try {
         const app = new FirecrawlApp({ apiKey });
 
-        // Scrape the URL
-        const scrapeResult = await app.scrape(targetUrl, {
-            formats: ['markdown', 'links'],
+        const directAttempt = await tryScrapeWithFactsheetFallback({
+            app,
+            targetUrl,
+            stage: 'direct',
         });
+        sources.push(...directAttempt.sources);
 
-        if (!scrapeResult.markdown) {
-            return { success: false, error: "Failed to scrape content from the page." };
+        if (directAttempt.data.length > 0) {
+            return {
+                success: true,
+                data: directAttempt.data,
+                sourceUrl: directAttempt.sourceUrl,
+                sources,
+            };
         }
 
-        let sectors = parseScrapedMarkdown(scrapeResult.markdown);
-        let finalSourceUrl = targetUrl;
+        // Wider-web fallback (only after direct + factsheet failed)
+        // Bias to ASX-listed tickers when the user provides a ticker.
+        const cleanTicker = ticker ? ticker.toUpperCase().replace('.AX', '').trim() : undefined;
+        const query = [cleanTicker ? `ASX:${cleanTicker}` : undefined, 'ETF sector breakdown', 'fact sheet']
+            .filter(Boolean)
+            .join(' ');
 
-        // Fallback: Check for Fact Sheet PDF if no data found
-        if (sectors.length === 0) {
-            console.log("No data on page. Looking for Fact Sheet...");
+        const candidates = await duckDuckGoCandidates(query);
+        sources.push({
+            stage: 'search',
+            url: `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`,
+            ok: candidates.length > 0,
+            note: candidates.length > 0 ? `Found ${candidates.length} candidates` : 'No candidates found',
+        });
 
-            // Strategy 1: Look for Markdown links with "Fact Sheet" text
-            const mdLinkRegex = /\[[^\]]*?Fact\s?Sheet[^\]]*?\]\((.*?)\)/i;
-            const mdMatch = scrapeResult.markdown.match(mdLinkRegex);
-
-            // Strategy 2: Look for links in the 'links' list that match heuristic
-            // We use 'as any' because the type definition might not explicitly show 'links' depending on version
-            const links = (scrapeResult as any).links || [];
-
-            let pdfUrl = mdMatch ? mdMatch[1] : links.find((l: string) =>
-                l.toLowerCase().includes('factsheet') && l.toLowerCase().endsWith('.pdf')
-            );
-
-            if (pdfUrl) {
-                try {
-                    // unexpected partial urls
-                    const absolutePdfUrl = new URL(pdfUrl, targetUrl).href;
-
-                    console.log(`Found PDF: ${absolutePdfUrl}. Scraping...`);
-                    const pdfResult = await app.scrape(absolutePdfUrl, {
-                        formats: ['markdown'],
-                    });
-
-                    if (pdfResult.markdown) {
-                        const pdfSectors = parseScrapedMarkdown(pdfResult.markdown);
-                        if (pdfSectors.length > 0) {
-                            sectors = pdfSectors;
-                            finalSourceUrl = absolutePdfUrl;
-                        }
-                    }
-                } catch (e) {
-                    console.warn("PDF Fallback failed:", e);
-                }
+        const topCandidates = candidates.slice(0, 5);
+        for (const candidateUrl of topCandidates) {
+            const candidateAttempt = await tryScrapeWithFactsheetFallback({
+                app,
+                targetUrl: candidateUrl,
+                stage: 'candidate',
+            });
+            sources.push(...candidateAttempt.sources);
+            if (candidateAttempt.data.length > 0) {
+                return {
+                    success: true,
+                    data: candidateAttempt.data,
+                    sourceUrl: candidateAttempt.sourceUrl,
+                    sources,
+                };
             }
         }
 
-        if (sectors.length === 0) {
-            return { success: false, error: "Could not find sector breakdown data on this page or linked Fact Sheet.", sourceUrl: finalSourceUrl };
-        }
-
-        return { success: true, data: sectors, sourceUrl: finalSourceUrl };
+        return {
+            success: false,
+            error: "Could not find sector breakdown data on this page, linked Fact Sheet, or wider web search candidates.",
+            sourceUrl: targetUrl,
+            sources,
+        };
 
     } catch (err) {
         console.error("Scraping error:", err);
         return { success: false, error: "An error occurred while fetching data." };
     }
+}
+
+export async function verifyCaptcha(captchaToken?: string): Promise<{ success: boolean; error?: string }> {
+    if (process.env.NODE_ENV === 'development') {
+        return { success: true };
+    }
+
+    const recaptchaSecret = process.env.RECAPTCHA_SECRET_KEY;
+    const cookieStore = await cookies();
+    const result = await verifyCaptchaInternal({ cookieStore, recaptchaSecret, captchaToken });
+    return result;
+}
+
+async function verifyCaptchaInternal({
+    cookieStore,
+    recaptchaSecret,
+    captchaToken,
+}: {
+    cookieStore: Awaited<ReturnType<typeof cookies>>;
+    recaptchaSecret: string | undefined;
+    captchaToken?: string;
+}): Promise<{ success: boolean; error?: string }> {
+    const humanCookie = cookieStore.get(HUMAN_COOKIE_NAME);
+    if (humanCookie?.value === 'true') {
+        return { success: true };
+    }
+
+    if (!recaptchaSecret) {
+        return { success: false, error: "Server configuration error: Missing reCAPTCHA Secret." };
+    }
+
+    if (!captchaToken) {
+        return { success: false, error: "Please complete the captcha." };
+    }
+
+    try {
+        const verifyUrl = `https://www.google.com/recaptcha/api/siteverify?secret=${recaptchaSecret}&response=${captchaToken}`;
+        const captchaRes = await fetch(verifyUrl, { method: 'POST' });
+        const captchaData = await captchaRes.json();
+
+        if (!captchaData.success) {
+            console.error("Captcha verification failed:", captchaData);
+            return { success: false, error: "Captcha verification failed. Please try again." };
+        }
+
+        cookieStore.set(HUMAN_COOKIE_NAME, 'true', {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            maxAge: 30 * 60, // 30 minutes
+            path: '/',
+        });
+
+        return { success: true };
+    } catch (err) {
+        console.error("Captcha verification error:", err);
+        return { success: false, error: "Failed to verify captcha." };
+    }
+}
+
+async function duckDuckGoCandidates(query: string): Promise<string[]> {
+    // Scrape-friendly HTML results page (still may be blocked occasionally)
+    const searchUrl = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`;
+    const res = await fetch(searchUrl, {
+        headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml',
+        },
+    });
+
+    if (!res.ok) {
+        return [];
+    }
+
+    const html = await res.text();
+    const $ = cheerio.load(html);
+
+    const hrefs: string[] = [];
+    $('a.result__a').each((_, el) => {
+        const href = $(el).attr('href');
+        if (href) hrefs.push(href);
+    });
+
+    // Some variants use .result__url
+    $('a.result__url').each((_, el) => {
+        const href = $(el).attr('href');
+        if (href) hrefs.push(href);
+    });
+
+    const candidates = hrefs
+        .map((href) => decodeDuckDuckGoRedirect(href))
+        .filter((u): u is string => !!u)
+        .filter((u) => u.startsWith('http://') || u.startsWith('https://'))
+        .filter((u) => !u.includes('duckduckgo.com'))
+        .filter((u) => !u.startsWith('mailto:') && !u.startsWith('tel:'));
+
+    // Deduplicate while preserving order
+    const seen = new Set<string>();
+    const unique: string[] = [];
+    for (const u of candidates) {
+        const normalized = stripTracking(u);
+        if (!seen.has(normalized)) {
+            seen.add(normalized);
+            unique.push(normalized);
+        }
+    }
+
+    return unique;
+}
+
+function decodeDuckDuckGoRedirect(href: string): string | null {
+    try {
+        const url = new URL(href, 'https://duckduckgo.com');
+        const uddg = url.searchParams.get('uddg');
+        if (uddg) return decodeURIComponent(uddg);
+        return url.href;
+    } catch {
+        return null;
+    }
+}
+
+function stripTracking(url: string): string {
+    try {
+        const u = new URL(url);
+        // keep query for now; just remove common tracking params
+        const trackingParams = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content'];
+        for (const p of trackingParams) u.searchParams.delete(p);
+        return u.toString();
+    } catch {
+        return url;
+    }
+}
+
+async function tryScrapeWithFactsheetFallback({
+    app,
+    targetUrl,
+    stage,
+}: {
+    app: FirecrawlApp;
+    targetUrl: string;
+    stage: 'direct' | 'candidate';
+}): Promise<{ data: SectorData[]; sourceUrl: string; sources: EtfSourceAttempt[] }> {
+    const sources: EtfSourceAttempt[] = [];
+
+    try {
+        const scrapeResult = await app.scrape(targetUrl, {
+            formats: ['markdown', 'links'],
+        });
+
+        if (!scrapeResult.markdown) {
+            sources.push({ stage, url: targetUrl, ok: false, error: 'No markdown returned from scrape' });
+            return { data: [], sourceUrl: targetUrl, sources };
+        }
+
+        const sectors = parseScrapedMarkdown(scrapeResult.markdown);
+        sources.push({ stage, url: targetUrl, ok: sectors.length > 0, note: sectors.length > 0 ? 'Parsed sectors from page' : 'No sector breakdown found on page' });
+
+        if (sectors.length > 0) {
+            return { data: sectors, sourceUrl: targetUrl, sources };
+        }
+
+        const pdfUrl = discoverFactsheetPdfUrl({
+            markdown: scrapeResult.markdown,
+            links: extractLinks(scrapeResult),
+            baseUrl: targetUrl,
+        });
+
+        if (!pdfUrl) {
+            return { data: [], sourceUrl: targetUrl, sources };
+        }
+
+        try {
+            const pdfResult = await app.scrape(pdfUrl, {
+                formats: ['markdown'],
+            });
+
+            if (!pdfResult.markdown) {
+                sources.push({
+                    stage: stage === 'direct' ? 'factsheet' : 'candidate-factsheet',
+                    url: pdfUrl,
+                    ok: false,
+                    error: 'No markdown returned from PDF scrape',
+                });
+                return { data: [], sourceUrl: targetUrl, sources };
+            }
+
+            const pdfSectors = parseScrapedMarkdown(pdfResult.markdown);
+            sources.push({
+                stage: stage === 'direct' ? 'factsheet' : 'candidate-factsheet',
+                url: pdfUrl,
+                ok: pdfSectors.length > 0,
+                note: pdfSectors.length > 0 ? 'Parsed sectors from factsheet PDF' : 'No sector breakdown found in factsheet PDF',
+            });
+
+            if (pdfSectors.length > 0) {
+                return { data: pdfSectors, sourceUrl: pdfUrl, sources };
+            }
+        } catch (e) {
+            sources.push({
+                stage: stage === 'direct' ? 'factsheet' : 'candidate-factsheet',
+                url: pdfUrl,
+                ok: false,
+                error: e instanceof Error ? e.message : String(e),
+            });
+        }
+
+        return { data: [], sourceUrl: targetUrl, sources };
+    } catch (e) {
+        sources.push({ stage, url: targetUrl, ok: false, error: e instanceof Error ? e.message : String(e) });
+        return { data: [], sourceUrl: targetUrl, sources };
+    }
+}
+
+function discoverFactsheetPdfUrl({
+    markdown,
+    links,
+    baseUrl,
+}: {
+    markdown: string;
+    links: string[];
+    baseUrl: string;
+}): string | null {
+    // Strategy 1: Look for Markdown links with "Fact Sheet" text
+    const mdLinkRegex = /\[[^\]]*?Fact\s?Sheet[^\]]*?\]\((.*?)\)/i;
+    const mdMatch = markdown.match(mdLinkRegex);
+    if (mdMatch?.[1]) {
+        try {
+            return new URL(mdMatch[1], baseUrl).href;
+        } catch {
+            // ignore
+        }
+    }
+
+    // Strategy 2: Look for PDF links in the links list
+    const scored = links
+        .map((l) => {
+            const lower = l.toLowerCase();
+            let score = 0;
+            if (lower.endsWith('.pdf')) score += 2;
+            if (lower.includes('factsheet') || lower.includes('fact-sheet')) score += 5;
+            if (lower.includes('pds') || lower.includes('product-disclosure')) score += 1;
+            if (lower.includes('download') || lower.includes('resources') || lower.includes('documents')) score += 1;
+            return { l, score };
+        })
+        .filter((x) => x.score > 0)
+        .sort((a, b) => b.score - a.score);
+
+    if (scored.length === 0) return null;
+
+    try {
+        return new URL(scored[0].l, baseUrl).href;
+    } catch {
+        return null;
+    }
+}
+
+function extractLinks(scrapeResult: unknown): string[] {
+    if (!scrapeResult || typeof scrapeResult !== 'object') return [];
+    const maybeLinks = (scrapeResult as { links?: unknown }).links;
+    if (!Array.isArray(maybeLinks)) return [];
+    return maybeLinks.filter((l): l is string => typeof l === 'string');
 }
 
 function parseScrapedMarkdown(markdown: string): SectorData[] {
@@ -247,12 +492,12 @@ function parseScrapedMarkdown(markdown: string): SectorData[] {
     // The user requested SPECIFIC list. 
     // If we found "Information Technology" mapped to "Technology", it's good.
 
-    return results.filter(r => REQUESTED_SECTORS.includes(r.sector as any)).sort((a, b) => b.weight - a.weight);
+    return results.filter(r => REQUESTED_SECTORS.includes(r.sector)).sort((a, b) => b.weight - a.weight);
 }
 
 function normalizeSector(raw: string): string {
     // Basic cleaning
-    let cleaned = raw.trim();
+    const cleaned = raw.trim();
     // Check direct map
     if (SECTOR_MAPPING[cleaned]) return SECTOR_MAPPING[cleaned];
 

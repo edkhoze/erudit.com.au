@@ -1,4 +1,3 @@
-import Image from "next/image";
 import { Hero } from "@/components/Hero";
 import { Services } from "@/components/Services";
 import { LatestPosts } from "@/components/LatestPosts";
@@ -15,7 +14,7 @@ export default function Home() {
       {/* Contact Section */}
       <section id="contact" className="py-20 bg-muted/30">
         <div className="container px-4 md:px-8 max-w-screen-2xl text-center">
-          <h2 className="text-3xl font-bold tracking-tight sm:text-4xl mb-6">Let's get to work</h2>
+          <h2 className="text-3xl font-bold tracking-tight sm:text-4xl mb-6">Let&apos;s get to work</h2>
           <p className="text-muted-foreground max-w-2xl mx-auto mb-8">
             Reach out and have a chat about how Erudit can help you.
           </p>
